@@ -1,22 +1,27 @@
 {
-  "name": "cls-hooked",
-  "version": "4.2.2",
-  "description": "CLS using AsynWrap instead of async-listener - Node >= 4.7.0",
-  "main": "index.js",
+  "name": "cls-ts",
+  "version": "0.1.0",
+  "description": "CLS implemented with TypeScript",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
-    "index.js",
-    "context.js",
-    "context-legacy.js"
+    "dist/**/*"
   ],
   "scripts": {
-    "test": "mocha test/*.js & tap test/tap/*.tap.js",
-    "test-mocha": "mocha test/*.js",
-    "test-tap": "tap test/tap/*.tap.js",
-    "debug": "node --nolazy --debug-brk=5858 "
+    "compile": "tsc",
+    "debug": "node --nolazy --debug-brk=5858",
+    "fix": "prettier --write \"{src,test}/**/*.ts\" && eslint --fix \"{src,test}/**/*.ts\"",
+    "lintSrc": "eslint \"src/**/*.ts\"",
+    "lintTest": "eslint --config .eslintrc.test.js \"test/**/*.ts\"",
+    "lint": "npm run lintSrc && npm run lintTest",
+    "test": "jest",
+    "posttest": "npm run lint",
+    "prepublishOnly": "npm run compile && npm run typedocs",
+    "typedocs": "typedoc --ignoreCompilerErrors --out ./docs ./src/"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jeff-lewis/cls-hooked.git"
+    "url": "https://github.com/ribcakes/cls-ts.git"
   },
   "keywords": [
     "threading",
@@ -27,26 +32,63 @@
   "contributors": [
     "Tim Caswell <tim@creationix.com>",
     "Forrest L Norvell <ogd@aoaioxxysz.net>",
-    "Jeff Lewis <jlewis@streetconnect.com>"
+    "Jeff Lewis <jlewis@streetconnect.com>",
+    "Brian <ribcakes@ribcakes.com>"
   ],
   "license": "BSD-2-Clause",
   "engineStrict": false,
   "engines": {
-    "node": "^4.7 || >=6.9 || >=7.3 || >=8.2.1"
+    "node": ">=10"
   },
   "dependencies": {
-    "async-hook-jl": "^1.7.6",
-    "emitter-listener": "^1.0.1",
-    "semver": "^5.4.1"
+    "emitter-listener": "^1.0.1"
   },
   "devDependencies": {
-    "chai": "^4.1.0",
-    "mocha": "^3.4.2",
-    "sinon": "^2.3.8",
-    "sinon-chai": "^2.12.0",
-    "superagent": "^3.5.2",
-    "tap": "^10.7.0",
-    "tap-mocha-reporter": "3.0.6"
+    "@types/bluebird": "^3.5.28",
+    "@types/jest": "^24.0.22",
+    "@types/node": "^10.17.4",
+    "@types/superagent": "^4.1.4",
+    "@typescript-eslint/eslint-plugin": "^1.7.0",
+    "@typescript-eslint/parser": "^1.7.0",
+    "bluebird": "^3.7.1",
+    "eslint": "^5.16.0",
+    "eslint-config-prettier": "^4.3.0",
+    "eslint-plugin-prettier": "^3.1.0",
+    "jest": "^24.8.0",
+    "prettier": "^1.18.2",
+    "ts-jest": "^24.0.2",
+    "ts-loader": "^5.3.3",
+    "ts-node": "^7.0.1",
+    "typedoc": "^0.14.2",
+    "typedoc-plugin-external-module-name": "^2.0.0",
+    "typescript": "^3.7.2"
   },
-  "false": {}
+  "jest": {
+    "preset": "ts-jest",
+    "testMatch": [
+      "<rootDir>/test/**/*.test.ts"
+    ],
+    "setupFiles": [
+      "<rootDir>/test/setup.ts"
+    ],
+    "verbose": true,
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "<rootDir>/src/**/*.ts"
+    ],
+    "coveragePathIgnorePatterns": [
+      "interface"
+    ],
+    "coverageReporters": [
+      "text",
+      "cobertura",
+      "html"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 100,
+        "lines": 100
+      }
+    }
+  }
 }

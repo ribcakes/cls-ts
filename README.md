@@ -1,25 +1,15 @@
-[![NPM](https://nodei.co/npm/cls-hooked.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/cls-hooked/)
+# Continuation-Local Storage ( Typescript )
 
-[![Build Status](https://travis-ci.org/Jeff-Lewis/cls-hooked.svg?branch=master)](https://travis-ci.org/Jeff-Lewis/cls-hooked)
+This is a fork of [cls-hooked](https://github.com/Jeff-Lewis/cls-hooked) implemented with Typescript.
 
-# Continuation-Local Storage ( Hooked )
-
-### This is a fork of [CLS](https://github.com/othiym23/node-continuation-local-storage) using [AsyncWrap](https://github.com/nodejs/node-eps/blob/async-wrap-ep/XXX-asyncwrap-api.md) OR [async_hooks](https://github.com/nodejs/node/blob/master/doc/api/async_hooks.md) instead of [async-listener](https://github.com/othiym23/async-listener).
-
-### When running Nodejs version < 8, this module uses [AsyncWrap](https://github.com/nodejs/node-eps/blob/async-wrap-ep/XXX-asyncwrap-api.md) which is an unsupported Nodejs API, so please consider the risk before using it.
-
-### When running Nodejs version >= 8.2.1, this module uses the newer [async_hooks](https://github.com/nodejs/node/blob/master/doc/api/async_hooks.md) API which is considered `Experimental` by Nodejs. 
-
-### Thanks to [@trevnorris](https://github.com/trevnorris) for [AsyncWrap](https://github.com/nodejs/node-eps/blob/async-wrap-ep/XXX-asyncwrap-api.md), [async_hooks](https://github.com/nodejs/node/blob/master/doc/api/async_hooks.md) and all the async work in Node and [@AndreasMadsen](https://github.com/AndreasMadsen) for [async-hook](https://github.com/AndreasMadsen/async-hook)
+Support for node < 10 has been removed, and it will no longer use a `process` global.
+In addition, an optional dependency supporting weak references has been made available.
 
 ### A little history of "AsyncWrap/async_hooks" and its incarnations
 
 1. First implementation was called **[AsyncListener](https://github.com/nodejs/node-v0.x-archive/pull/6011)** in node v0.11 but was [removed from core](https://github.com/nodejs/node-v0.x-archive/pull/8110) prior to Nodejs v0.12
 2. Second implementation called **[AsyncWrap, async-wrap or async_wrap](https://github.com/nodejs/node-eps/blob/async-wrap-ep/XXX-asyncwrap-api.md)** was included to Nodejs v0.12.
-    - `AsyncWrap` is unofficial and undocumented but is currently in Nodejs versions 6 & 7
-    - `cls-hooked` uses `AsyncWrap` when run in Node < 8.
 3. Third implementation and [offically Node-eps accepted](https://github.com/nodejs/node-eps/blob/master/006-asynchooks-api.md) **AsyncHooks ([async_hooks](https://github.com/nodejs/node/blob/master/doc/api/async_hooks.md)) API** was included in Nodejs v8. :) 
-**The latest version of `cls-hooked` uses [async_hooks](https://github.com/nodejs/node/blob/master/doc/api/async_hooks.md) API when run in Node >= 8.2.1**
 
 ---
 Continuation-local storage works like thread-local storage in threaded
@@ -32,41 +22,42 @@ that are scoped to the lifetime of these chains of function calls.
 Suppose you're writing a module that fetches a user and adds it to a session
 before calling a function passed in by a user to continue execution:
 
-```javascript
-// setup.js
+```typescript
+// setup.ts
+import { createNamespace, Namespace } from 'cls-ts';
+import * as db from './lib/db';
 
-var createNamespace = require('cls-hooked').createNamespace;
-var session = createNamespace('my session');
+const session: Namespace = createNamespace('my session');
 
-var db = require('./lib/db.js');
-
-function start(options, next) {
-  db.fetchUserById(options.id, function (error, user) {
-    if (error) return next(error);
+const start = (options, next) => {
+  db.fetchUserById(options.id, (error, user) => {
+    if (error) {
+      return next(error);
+    }
 
     session.set('user', user);
 
     next();
   });
-}
+};
 ```
 
 Later on in the process of turning that user's data into an HTML page, you call
 another function (maybe defined in another module entirely) that wants to fetch
 the value you set earlier:
 
-```javascript
-// send_response.js
+```typescript
+// send_response.ts
 
-var getNamespace = require('cls-hooked').getNamespace;
-var session = getNamespace('my session');
+import { getNamespace, Namespace } from 'cls-ts';
+import * as render from './lib/render'
 
-var render = require('./lib/render.js')
+const session: Namespace = getNamespace('my session');
 
-function finish(response) {
-  var user = session.get('user');
+const finish = response => {
+  const user = session.get('user');
   render({user: user}).pipe(response);
-}
+};
 ```
 
 When you set values in continuation-local storage, those values are accessible
@@ -93,18 +84,12 @@ overwriting the parent's.
 
 A simple, annotated example of how this nesting behaves:
 
-```javascript
-var createNamespace = require('cls-hooked').createNamespace;
+```typescript
+import { createNamespace, Namespace, Context } from 'cls-ts';
+const writer: Namespace = createNamespace('writer');
 
-var writer = createNamespace('writer');
-writer.run(function () {
-  writer.set('value', 0);
-
-  requestHandler();
-});
-
-function requestHandler() {
-  writer.run(function(outer) {
+const requestHandler = () => {
+  writer.run(function(outer: Context) {
     // writer.get('value') returns 0
     // outer.value is 0
     writer.set('value', 1);
@@ -113,7 +98,7 @@ function requestHandler() {
     process.nextTick(function() {
       // writer.get('value') returns 1
       // outer.value is 1
-      writer.run(function(inner) {
+      writer.run(function(inner: Context) {
         // writer.get('value') returns 1
         // outer.value is 1
         // inner.value is 1
@@ -129,7 +114,13 @@ function requestHandler() {
     // runs with the default context, because nested contexts have ended
     console.log(writer.get('value')); // prints 0
   }, 1000);
-}
+};
+
+writer.run(function () {
+  writer.set('value', 0);
+
+  requestHandler();
+});
 ```
 
 ## cls.createNamespace(name)
@@ -160,17 +151,14 @@ remaining references to those namespaces in code, the associated storage will
 still be reachable, even though the associated state is no longer being updated.
 Make sure you clean up any references to destroyed namespaces yourself.
 
-## process.namespaces
+## cls.fromException
 
-* return: dictionary of {Namespace} objects
+When an exception is thrown from a function wrapped with a namespace, through `run`
+or `bind` and associated methods, the active context is attached to the thrown error
+using a private symbol.
+This method will attempt to retrieve the context attached to an error.
 
-Continuation-local storage has a performance cost, and so it isn't enabled
-until the module is loaded for the first time. Once the module is loaded, the
-current set of namespaces is available in `process.namespaces`, so library code
-that wants to use continuation-local storage only when it's active should test
-for the existence of `process.namespaces`.
-
-## Class: Namespace
+### Class: Namespace
 
 Application-specific namespaces group values local to the set of functions
 whose calls originate from a callback passed to `namespace.run()` or
@@ -218,6 +206,18 @@ when it's called.
 
 Same as `namespace.run()` but returns the return value of the callback rather
 than the context.
+
+## namespace.runPromise(promiseGenerator)
+
+* return: the generated {Promise} with cls then's attached
+
+Create a new context on which values can be set or read. Run all the functions
+that are called (either directly, or indirectly through further asynchronous functions
+that take callbacks themselves) from the provided promise generator within the scope
+of that namespace. The {Promise} generated by the `promiseGenerator` only needs to be
+`Promise-like`, non-null, with both a `then` and `catch` function defined. The new 
+context is passed as an argument to the promise generator when it's called.
+
 
 ### namespace.bind(callback, [context])
 
@@ -276,15 +276,10 @@ A context is a plain object created using the enclosing context as its prototype
 
 # copyright & license
 
-See [LICENSE](https://github.com/jeff-lewis/cls-hooked/blob/master/LICENSE)
+See [LICENSE](https://github.com/ribcakes/cls-ts/blob/master/LICENSE)
 for the details of the BSD 2-clause "simplified" license used by
-`continuation-local-storage`. This package was developed in 2012-2013 (and is
-maintained now) by Forrest L Norvell, [@othiym23](https://github.com/othiym23),
-with considerable help from Timothy Caswell,
-[@creationix](https://github.com/creationix), working for The Node Firm. This
-work was underwritten by New Relic for use in their Node.js instrumentation
-agent, so maybe give that a look if you have some Node.js
-performance-monitoring needs.
+`continuation-local-storage`. This package was developed in 2019-2020 
+as a fork of [cls-hooked](https://github.com/Jeff-Lewis/cls-hooked) written by [Jeff Lewis](https://github.com/Jeff-Lewis).
 
 [timer functions]: https://nodejs.org/api/timers.html
 [setImmediate]:    https://nodejs.org/api/timers.html#timers_setimmediate_callback_arg

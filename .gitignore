@@ -1,5 +1,8 @@
 node_modules/
-.idea/*
-!.idea/runConfigurations/
+.idea/
+*.iml
 npm-debug.log
 .vscode
+coverage/
+dist/
+docs/

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "alwaysStrict": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "declaration": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["es2015", "dom", "esnext.asynciterable", "es2017"],
+    "module": "commonjs",
+    "outDir": "dist",
+    "sourceMap": true,
+    "target": "es2017",
+    "noImplicitAny": true
+  },
+  "include": [
+    "./src/**/*"
+  ]
+}
+
