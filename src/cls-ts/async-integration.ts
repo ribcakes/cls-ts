@@ -180,6 +180,8 @@ export const createNamespace = function(name: string): Namespace {
  * @see Namespace.reset
  */
 export const destroyNamespace = function(name: string): void {
+  const namespace: Namespace = namespaces.get(name);
+  namespace.reset();
   namespaces.delete(name);
 
   const hook: asyncHooks.AsyncHook = hooks.get(name);

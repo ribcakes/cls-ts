@@ -2,6 +2,10 @@ import { EventEmitter } from 'events';
 import * as http from 'http';
 import { Readable } from 'stream';
 import * as cls from '../../src/cls-ts';
+import { CONTEXTS_SYMBOL } from '../../src/cls-ts/Namespace';
+import { weak } from '../../src/cls-ts/weak';
+import { setFlagsFromString } from 'v8';
+import { runInNewContext } from 'vm';
 
 describe('bind-emitter', () => {
   afterEach(() => {
@@ -81,6 +85,35 @@ describe('bind-emitter', () => {
       namespace.set('value', 'hello');
       namespace.bindEmitter(eventEmitter);
     });
+    eventEmitter.emit('event');
+  });
+
+  it('should not throw an error if the namespace bound to the emitter is destroyed', done => {
+    const namespace = weak(cls.createNamespace('destroy'));
+    const eventEmitter = new EventEmitter();
+
+    const listener = (): void => {
+      // @ts-ignore
+      expect(Object.getOwnPropertySymbols(listener[CONTEXTS_SYMBOL])).toHaveLength(0);
+      done();
+    };
+
+    namespace.run(() => {
+      namespace.set('value', 'hello');
+      namespace.bindEmitter(eventEmitter);
+      eventEmitter.on('event', listener);
+      // @ts-ignore
+      expect(Object.getOwnPropertySymbols(listener[CONTEXTS_SYMBOL])).toHaveLength(1);
+    });
+
+    cls.destroyNamespace('destroy');
+    expect(cls.getNamespace('destroy')).toBeUndefined();
+
+    // Force GC to reap weak references
+    setFlagsFromString('--expose_gc');
+    runInNewContext('gc')();
+    expect(weak.get(namespace)).toBeUndefined();
+
     eventEmitter.emit('event');
   });
 

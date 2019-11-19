@@ -7,10 +7,10 @@ import * as asyncHooks from 'async_hooks';
 // @ts-ignore: emitter-listener has no types
 import * as wrapEmitter from 'emitter-listener';
 import { EventEmitter } from 'events';
-import * as util from 'util';
 import { getCurrentUid, ERROR_SYMBOL } from './async-integration';
 import { printDebug } from './debug';
 import { Context, CONTEXT_ID_SYMBOL, CONTEXT_NAMESPACE_NAME_SYMBOL } from './interface';
+import { weak } from './weak';
 
 /**
  * The symbol used when attaching {@link Context}s to an {@link EventEmitter} listener.
@@ -442,7 +442,10 @@ export class Namespace {
 
     // Fast search in the stack using lastIndexOf
     const index: number = this._stack.lastIndexOf(context);
-    assert.ok(index > 0, `context not currently entered; can't exit. \n${util.inspect(this)}\n${util.inspect(context)}`);
+    if (index < 0) {
+      printDebug("[exit] context wasn't entered, was it destroyed?", debugContext);
+      return;
+    }
     assert.ok(index, "can't remove top context");
 
     printDebug('[exit] deleting context from set', { ...debugContext, index });
@@ -471,10 +474,11 @@ export class Namespace {
       emitter
     };
     printDebug('[bind emitter] start', debugContext);
-    const namespace: this = this;
+    const weakNamespace: this = weak(this);
 
     // Capture the context active at the time the emitter is bound.
     const attach = function(listener: (...args: unknown[]) => unknown): void {
+      const namespace: Namespace = weak.get(weakNamespace);
       if (!namespace || !namespace.active) {
         return;
       }
@@ -487,8 +491,8 @@ export class Namespace {
 
       // @ts-ignore
       listener[CONTEXTS_SYMBOL][namespace.contextSymbol] = {
-        namespace: namespace,
-        context: namespace.active
+        namespace: weakNamespace,
+        context: weak(namespace.active)
       };
     };
 
@@ -504,13 +508,36 @@ export class Namespace {
       const unwrappedContexts: { [key: symbol]: { namespace: Namespace; context: Context } } = unwrapped[CONTEXTS_SYMBOL];
       Object.getOwnPropertySymbols(unwrappedContexts).forEach((name: symbol) => {
         // @ts-ignore
-        const thunk: { namespace: Namespace; context: Context } = unwrappedContexts[name];
-        wrapped = thunk.namespace.bind(wrapped, thunk.context);
+        const { namespace, context }: { namespace: Namespace; context: Context } = unwrappedContexts[name];
+        if (!weak.get(namespace) || !weak.get(context)) {
+          // @ts-ignore
+          delete unwrappedContexts[name];
+          return;
+        }
+        wrapped = namespace.bind(wrapped, context);
       });
       return wrapped;
     };
 
     wrapEmitter(emitter, attach, bind);
     printDebug('[bind emitter] end', debugContext);
+  }
+
+  /**
+   * Resets this {@link Namespace} by removing the active {@link Namespace}, as well as the map and stack of {@link Context}s.
+   */
+  public reset(): void {
+    printDebug('[reset]', {
+      name: this.name,
+      currentUid: getCurrentUid(),
+      executionId: asyncHooks.executionAsyncId(),
+      triggerId: asyncHooks.triggerAsyncId(),
+      setLength: this._stack.length,
+      indent: this.indent
+    });
+    this._active = undefined;
+    this._contexts.clear();
+    this._stack = [];
+    this._indent = 0;
   }
 }

@@ -60,4 +60,22 @@ describe('bind', () => {
       })
     ).toThrowError();
   });
+
+  it('should not throw an exception if the bound namespace is destroyed while the function is executing', done => {
+    const transaction = { status: 'ok' };
+
+    harvester.on('finished', data => {
+      expect(data).toBeUndefined();
+      done();
+    });
+
+    trace.runHandler(() => {
+      expect(tracer.active).not.toBeFalsy();
+
+      tracer.set('transaction', transaction);
+      cls.destroyNamespace('tracer');
+
+      expect(tracer.get('transaction')).toBeUndefined();
+    });
+  });
 });
