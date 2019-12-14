@@ -45,7 +45,7 @@ describe('dns', () => {
         namespace.set('test', 212);
         expect(namespace.get('test')).toEqual(212);
 
-        dns.resolveCname('mail.newrelic.com', (err, addresses) => {
+        dns.resolveCname('images.google.com', (err, addresses) => {
           expect(err).toBeNull();
           expect(addresses.length).toBeGreaterThan(0);
 

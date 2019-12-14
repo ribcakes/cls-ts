@@ -1,6 +1,6 @@
 {
   "name": "cls-ts",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CLS implemented with TypeScript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,9 +11,7 @@
     "compile": "tsc",
     "debug": "node --nolazy --debug-brk=5858",
     "fix": "prettier --write \"{src,test}/**/*.ts\" && eslint --fix \"{src,test}/**/*.ts\"",
-    "lintSrc": "eslint \"src/**/*.ts\"",
-    "lintTest": "eslint --config .eslintrc.test.js \"test/**/*.ts\"",
-    "lint": "npm run lintSrc && npm run lintTest",
+    "lint": "eslint \"{src,test}/**/*.ts\"",
     "test": "jest",
     "posttest": "npm run lint",
     "prepublishOnly": "npm run compile && npm run typedocs",
@@ -41,31 +39,31 @@
     "node": ">=10"
   },
   "dependencies": {
-    "emitter-listener": "^1.0.1"
+    "emitter-listener": "^1.1.2"
   },
   "optionalDependencies": {
     "weak-napi": "^1.0.3"
   },
   "devDependencies": {
-    "@types/bluebird": "^3.5.28",
-    "@types/jest": "^24.0.22",
-    "@types/node": "^10.17.4",
+    "@types/bluebird": "^3.5.29",
+    "@types/jest": "^24.0.23",
+    "@types/node": "^10.17.9",
     "@types/superagent": "^4.1.4",
     "@types/weak-napi": "^1.0.0",
-    "@typescript-eslint/eslint-plugin": "^1.7.0",
-    "@typescript-eslint/parser": "^1.7.0",
-    "bluebird": "^3.7.1",
-    "eslint": "^5.16.0",
-    "eslint-config-prettier": "^4.3.0",
-    "eslint-plugin-prettier": "^3.1.0",
-    "jest": "^24.8.0",
-    "prettier": "^1.18.2",
-    "ts-jest": "^24.0.2",
-    "ts-loader": "^5.3.3",
-    "ts-node": "^7.0.1",
+    "@typescript-eslint/eslint-plugin": "^2.11.0",
+    "@typescript-eslint/parser": "^2.11.0",
+    "bluebird": "^3.7.2",
+    "eslint": "^6.7.2",
+    "eslint-config-prettier": "^6.7.0",
+    "eslint-plugin-prettier": "^3.1.1",
+    "jest": "^24.9.0",
+    "prettier": "^1.19.1",
+    "ts-jest": "^24.2.0",
+    "ts-loader": "^6.2.1",
+    "ts-node": "^8.5.4",
     "typedoc": "^0.14.2",
-    "typedoc-plugin-external-module-name": "^2.0.0",
-    "typescript": "^3.7.2"
+    "typedoc-plugin-external-module-name": "^2.1.0",
+    "typescript": "^3.7.3"
   },
   "jest": {
     "preset": "ts-jest",

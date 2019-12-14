@@ -10,7 +10,7 @@ module.exports = {
     ecmaVersion: 2018,
     // Allows for the use of imports
     sourceType: 'module',
-    project: './tsconfig.json'
+    project: './tsconfig.eslint.json'
   },
   // Enables us to use rules available in these plugins
   plugins: ['@typescript-eslint'],
@@ -105,7 +105,7 @@ module.exports = {
     // Disallow lexical declarations in case/default clauses
     'no-case-declarations': 'error',
     // Disallow empty functions
-    'no-empty-function': ['error', { allow: ['constructors'] } ],
+    'no-empty-function': ['error', { allow: ['constructors'] }],
     // Disallow empty destructuring patterns
     'no-empty-pattern': 'error',
     // Disallow eval()
@@ -367,7 +367,7 @@ module.exports = {
 
     // General TS/JS Rules
     '@typescript-eslint/adjacent-overload-signatures': 'error',
-    '@typescript-eslint/array-type': ['error', 'array'],
+    '@typescript-eslint/array-type': ['error', { default: 'array' }],
     '@typescript-eslint/await-thenable': 'error',
     '@typescript-eslint/ban-types': [
       'error',
@@ -400,11 +400,12 @@ module.exports = {
     ],
     '@typescript-eslint/camelcase': 'error',
     '@typescript-eslint/class-name-casing': 'error',
+    '@typescript-eslint/consistent-type-assertions': 'error',
+    '@typescript-eslint/consistent-type-definitions': 'error',
     '@typescript-eslint/explicit-function-return-type': ['error', { allowExpressions: true, allowTypedFunctionExpressions: true }],
     '@typescript-eslint/explicit-member-accessibility': 'error',
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/member-delimiter-style': 'error',
-    '@typescript-eslint/no-angle-bracket-type-assertion': 'error',
     '@typescript-eslint/no-array-constructor': 'error',
     '@typescript-eslint/no-empty-interface': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
@@ -415,24 +416,34 @@ module.exports = {
     '@typescript-eslint/no-misused-new': 'error',
     '@typescript-eslint/no-namespace': 'error',
     '@typescript-eslint/no-non-null-assertion': 'off',
-    '@typescript-eslint/no-object-literal-type-assertion': 'error',
     '@typescript-eslint/no-parameter-properties': 'off',
     '@typescript-eslint/no-require-imports': 'error',
-    '@typescript-eslint/no-triple-slash-reference': 'error',
+    '@typescript-eslint/triple-slash-reference': 'error',
     '@typescript-eslint/no-unnecessary-qualifier': 'error',
     '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+    '@typescript-eslint/no-unnecessary-type-arguments': 'error',
     '@typescript-eslint/no-useless-constructor': 'error',
     '@typescript-eslint/no-unused-vars': ['error', { args: 'none' }],
     '@typescript-eslint/no-use-before-define': 'error',
     '@typescript-eslint/no-var-requires': 'error',
     '@typescript-eslint/prefer-for-of': 'error',
     '@typescript-eslint/prefer-includes': 'error',
-    '@typescript-eslint/prefer-interface': 'error',
     '@typescript-eslint/prefer-namespace-keyword': 'error',
     '@typescript-eslint/prefer-string-starts-ends-with': 'error',
     //    "@typescript-eslint/promise-function-async": "error", This rule triggers on functions that return `unknown`, which isn't helpful
     '@typescript-eslint/require-array-sort-compare': 'error',
+    '@typescript-eslint/typedef': 'error',
     '@typescript-eslint/type-annotation-spacing': 'error',
     '@typescript-eslint/unbound-method': 'error'
-  }
+  },
+  overrides: [
+    {
+      files: ['*.test.ts'],
+      rules: {
+        '@typescript-eslint/await-thenable': 'off',
+        '@typescript-eslint/no-magic-numbers': 'off',
+        '@typescript-eslint/typedef': 'off'
+      }
+    }
+  ]
 };
