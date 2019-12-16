@@ -1,18 +1,14 @@
-name: CI
+name: node_11
 
 on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [10, 11, 12]
     steps:
     - uses: actions/checkout@v1
     - uses: actions/setup-node@v1
       with:
-        node-version: ${{ matrix.node }}
+        node-version: 11
     - run: npm install
     - run: npm test

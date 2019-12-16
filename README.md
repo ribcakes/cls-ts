@@ -1,4 +1,4 @@
-![](https://github.com/ribcakes/cls-ts/workflows/CI/badge.svg)
+![](https://github.com/ribcakes/cls-ts/workflows/node_10/badge.svg) ![](https://github.com/ribcakes/cls-ts/workflows/node_11/badge.svg) ![](https://github.com/ribcakes/cls-ts/workflows/node_12/badge.svg) ![](https://github.com/ribcakes/cls-ts/workflows/node_13/badge.svg)
 # Continuation-Local Storage ( Typescript )
 
 This is a fork of [cls-hooked](https://github.com/Jeff-Lewis/cls-hooked) implemented with Typescript.
