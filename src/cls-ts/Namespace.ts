@@ -7,7 +7,7 @@ import * as asyncHooks from 'async_hooks';
 // @ts-ignore: emitter-listener has no types
 import * as wrapEmitter from 'emitter-listener';
 import { EventEmitter } from 'events';
-import { getCurrentUid, ERROR_SYMBOL } from './async-integration';
+import { ERROR_SYMBOL } from './async-integration';
 import { printDebug } from './debug';
 import { Context, CONTEXT_ID_SYMBOL, CONTEXT_NAMESPACE_NAME_SYMBOL } from './interface';
 import { weak } from './weak';
@@ -21,7 +21,7 @@ export const CONTEXTS_SYMBOL = Symbol('contexts@namespace');
  * Namespaces group values together under a specific name to allow multiple sets of similar values to be tracked without interfering with
  * each other.
  */
-export class Namespace {
+export class Namespace implements asyncHooks.HookCallbacks {
   /**
    * The symbol used when attaching {@link Context}s to an {@link EventEmitter} listener.
    */
@@ -44,6 +44,10 @@ export class Namespace {
    * This value is used to indent the debug output to make it easier to understand.
    */
   private _indent: number = 0;
+  /**
+   * The map of {@link Context}s who have received a `promiseResolve` callback, but not yet received an `after` callback.
+   */
+  private _resolvedContexts: Map<number, Context> = new Map<number, Context>();
 
   /**
    * Default constructor that initializes the {@link Namespace}'s {@link contextSymbol}.
@@ -52,6 +56,170 @@ export class Namespace {
    */
   public constructor(private readonly name: string) {
     this.contextSymbol = Symbol(`context@${this.name}`);
+  }
+
+  /**
+   * {@link asyncHooks.HookCallbacks} `init` implementation. This method `assigns()`s a {@link Context} with the given `asyncId`, if one is
+   * active, otherwise try to use the .
+   *
+   * @param asyncId a unique ID for the async resource
+   * @param type the type of the async resource
+   * @param triggerAsyncId the unique ID of the async resource in whose execution context this async resource was created
+   * @param resource reference to the resource representing the async operation, needs to be released during destroy
+   *
+   * @see asyncHooks.HookCallbacks
+   * @see enter
+   */
+  public init(asyncId: number, type: string, triggerAsyncId: number, resource: Record<string, any>): void {
+    const debugContext = {
+      type,
+      name: this.name,
+      asyncId,
+      executionId: asyncHooks.executionAsyncId(),
+      triggerId: asyncHooks.triggerAsyncId(),
+      setLength: this._stack.length
+    };
+
+    if (this.active) {
+      this.assignContext(asyncId, this.active);
+      printDebug('[init] with active', debugContext, this.indent);
+    } else if (asyncHooks.executionAsyncId() === 0) {
+      /*
+       * ExecutionAsyncId will be 0 when triggered from C++. Promise events
+       * https://github.com/nodejs/node/blob/master/doc/api/async_hooks.md#triggerid
+       */
+      const triggerIdContext: Context = this.getContext(triggerAsyncId);
+      if (null == triggerIdContext) {
+        printDebug('[init] missing context', debugContext, this.indent);
+      } else {
+        this.assignContext(asyncId, triggerIdContext);
+        printDebug('[init] using context from trigger id', debugContext, this.indent);
+      }
+
+      if ('PROMISE' === type) {
+        printDebug('[init] promise', { ...debugContext, parentId: resource.parentId, resource }, this.indent);
+      }
+    }
+  }
+
+  /**
+   * {@link asyncHooks.HookCallbacks} `before` implementation. This method `enter()`s the {@link Context} associated with the given
+   * `asyncId`, if any.
+   *
+   * @param asyncId the unique identifier assigned to the resource which has executed the callback.
+   *
+   * @see asyncHooks.HookCallbacks
+   * @see enter
+   */
+  public before(asyncId: number): void {
+    const debugContext = {
+      name: this.name,
+      asyncId,
+      executionId: asyncHooks.executionAsyncId(),
+      triggerId: asyncHooks.triggerAsyncId(),
+      setLength: this._stack.length
+    };
+
+    const context: Context = this.getContext(asyncId);
+    if (context) {
+      printDebug('[before]', { ...debugContext, context }, this.indent);
+      this.enter(context);
+    } else {
+      printDebug('[before] missing context', debugContext, this.indent);
+    }
+    this.updateIndent(1);
+  }
+
+  /**
+   * {@link asyncHooks.HookCallbacks} `after` implementation. This method `exit()`s the {@link Context} associated with the given
+   * `asyncId`, if any.
+   *
+   * @param asyncId the unique identifier assigned to the resource which has executed the callback.
+   *
+   * @see asyncHooks.HookCallbacks
+   * @see exit
+   */
+  public after(asyncId: number): void {
+    const debugContext = {
+      name: this.name,
+      asyncId,
+      executionId: asyncHooks.executionAsyncId(),
+      triggerId: asyncHooks.triggerAsyncId(),
+      setLength: this._stack.length
+    };
+
+    this.updateIndent(-1);
+    let context = this.getContext(asyncId);
+    if (null == context) {
+      const weakContext = this._resolvedContexts.get(asyncId);
+      if (null == weakContext) {
+        printDebug('[after] missing context', debugContext, this.indent);
+        return;
+      }
+      context = weak.get(weakContext);
+      // @ts-ignore
+      debugContext.deletedContext = true;
+    }
+
+    printDebug('[after]', { ...debugContext, context }, this.indent);
+    this.exit(context);
+    this._resolvedContexts.delete(asyncId);
+  }
+
+  /**
+   * {@link asyncHooks.HookCallbacks} `destroy` implementation. This method `deletes` the {@link Context} associated with the given
+   * `asyncId`.
+   *
+   * @param asyncId the unique identifier assigned to the resource which has executed the callback.
+   *
+   * @see asyncHooks.HookCallbacks
+   * @see deleteContext
+   */
+  public destroy(asyncId: number): void {
+    printDebug(
+      '[destroy]',
+      {
+        name: this.name,
+        asyncId,
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        active: this.active
+      },
+      this.indent
+    );
+    this.deleteContext(asyncId);
+  }
+
+  /**
+   * {@link asyncHooks.HookCallbacks} `promiseResolve` implementation. This method `deletes` the {@link Context} associated with the given
+   * `asyncId`, caching it so it can be `exit()`ed.
+   *
+   * @param asyncId the unique identifier assigned to the resource which has executed the callback.
+   *
+   * @see asyncHooks.HookCallbacks
+   * @see deleteContext
+   */
+  public promiseResolve(asyncId: number): void {
+    printDebug(
+      '[promiseResolve]',
+      {
+        name: this.name,
+        asyncId,
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        active: this.active
+      },
+      this.indent
+    );
+    const context: Context = this.getContext(asyncId);
+    this.deleteContext(asyncId);
+    /*
+     * The `promiseResolve` hook callback is called before the `after` callback for promises, causing contexts on the stack to not be popped
+     * By keeping track of the contexts of resolved promises, we can ensure the stack gets cleaned up.
+     */
+    if (null != context) {
+      this._resolvedContexts.set(asyncId, weak(context));
+    }
   }
 
   /**
@@ -74,7 +242,6 @@ export class Namespace {
         asyncId,
         context,
         name: this.name,
-        currentUid: getCurrentUid(),
         executionId: asyncHooks.executionAsyncId(),
         triggerId: asyncHooks.triggerAsyncId(),
         active: this.active
@@ -87,10 +254,10 @@ export class Namespace {
   /**
    * Returns the {@link Context} associated with the given `asyncId`.
    *
-   * @param asyncID - The `asyncId` of the {@link Context} to retrieve.
+   * @param asyncId - The `asyncId` of the {@link Context} to retrieve.
    */
-  public getContext(asyncID: number): Context {
-    return this._contexts.get(asyncID);
+  public getContext(asyncId: number): Context {
+    return this._contexts.get(asyncId);
   }
 
   /**
@@ -112,10 +279,10 @@ export class Namespace {
       '[dumpContexts]',
       {
         name: this.name,
-        currentUid: getCurrentUid(),
         executionId: asyncHooks.executionAsyncId(),
         triggerId: asyncHooks.triggerAsyncId(),
         contexts: this._contexts,
+        deletedContexts: this._resolvedContexts,
         stack: this._stack
       },
       this.indent
@@ -142,7 +309,6 @@ export class Namespace {
       {
         key,
         value,
-        currentUid: getCurrentUid(),
         executionId: asyncHooks.executionAsyncId(),
         triggerId: asyncHooks.triggerAsyncId(),
         active: this.active
@@ -163,7 +329,6 @@ export class Namespace {
       key,
       active: this._active,
       name: this.name,
-      currentUid: getCurrentUid(),
       executionId: asyncHooks.executionAsyncId(),
       triggerId: asyncHooks.triggerAsyncId(),
       setLength: this._stack.length
@@ -204,14 +369,13 @@ export class Namespace {
     // Prototype inherit existing context if created a new child context within existing context.
     const context: Context = Object.create(this.active ? this.active : Object.prototype);
     context[CONTEXT_NAMESPACE_NAME_SYMBOL] = this.name;
-    context[CONTEXT_ID_SYMBOL] = getCurrentUid();
+    context[CONTEXT_ID_SYMBOL] = asyncHooks.executionAsyncId();
 
     printDebug(
       '[createContext]',
       {
         active: this.active,
         name: this.name,
-        currentUid: getCurrentUid(),
         executionId: asyncHooks.executionAsyncId(),
         triggerId: asyncHooks.triggerAsyncId(),
         setLength: this._stack.length
@@ -237,7 +401,6 @@ export class Namespace {
         '[run] begin',
         {
           name: this.name,
-          currentUid: getCurrentUid(),
           executionId: asyncHooks.executionAsyncId(),
           triggerId: asyncHooks.triggerAsyncId(),
           setLength: this._stack.length,
@@ -250,7 +413,6 @@ export class Namespace {
         '[run] function executed',
         {
           name: this.name,
-          currentUid: getCurrentUid(),
           executionId: asyncHooks.executionAsyncId(),
           triggerId: asyncHooks.triggerAsyncId(),
           setLength: this._stack.length,
@@ -264,7 +426,6 @@ export class Namespace {
         '[run] caught error',
         {
           name: this.name,
-          currentUid: getCurrentUid(),
           executionId: asyncHooks.executionAsyncId(),
           triggerId: asyncHooks.triggerAsyncId(),
           setLength: this._stack.length,
@@ -287,7 +448,6 @@ export class Namespace {
         '[run] end',
         {
           name: this.name,
-          currentUid: getCurrentUid(),
           executionId: asyncHooks.executionAsyncId(),
           triggerId: asyncHooks.triggerAsyncId(),
           setLength: this._stack.length,
@@ -332,7 +492,6 @@ export class Namespace {
       '[runPromise] begin',
       {
         name: this.name,
-        currentUid: getCurrentUid(),
         executionId: asyncHooks.executionAsyncId(),
         triggerId: asyncHooks.triggerAsyncId(),
         setLength: this._stack.length,
@@ -353,7 +512,6 @@ export class Namespace {
           '[runPromise] after then',
           {
             name: this.name,
-            currentUid: getCurrentUid(),
             executionId: asyncHooks.executionAsyncId(),
             triggerId: asyncHooks.triggerAsyncId(),
             setLength: this._stack.length,
@@ -379,7 +537,6 @@ export class Namespace {
           '[runPromise] after catch',
           {
             name: this.name,
-            currentUid: getCurrentUid(),
             executionId: asyncHooks.executionAsyncId(),
             triggerId: asyncHooks.triggerAsyncId(),
             setLength: this._stack.length,
@@ -404,7 +561,6 @@ export class Namespace {
       '[bind]',
       {
         name: this.name,
-        currentUid: getCurrentUid(),
         executionId: asyncHooks.executionAsyncId(),
         triggerId: asyncHooks.triggerAsyncId(),
         setLength: this._stack.length,
@@ -449,7 +605,6 @@ export class Namespace {
       '[enter]',
       {
         name: this.name,
-        currentUid: getCurrentUid(),
         executionId: asyncHooks.executionAsyncId(),
         triggerId: asyncHooks.triggerAsyncId(),
         setLength: this._stack.length,
@@ -475,7 +630,6 @@ export class Namespace {
   public exit(context: Context): void {
     const debugContext = {
       name: this.name,
-      currentUid: getCurrentUid(),
       executionId: asyncHooks.executionAsyncId(),
       triggerId: asyncHooks.triggerAsyncId(),
       setLength: this._stack.length,
@@ -519,7 +673,6 @@ export class Namespace {
     assert.ok(emitter.on && emitter.addListener && emitter.emit, 'can only bind real EEs');
     const debugContext = {
       name: this.name,
-      currentUid: getCurrentUid(),
       executionId: asyncHooks.executionAsyncId(),
       triggerId: asyncHooks.triggerAsyncId(),
       setLength: this._stack.length,
@@ -583,7 +736,6 @@ export class Namespace {
       '[reset]',
       {
         name: this.name,
-        currentUid: getCurrentUid(),
         executionId: asyncHooks.executionAsyncId(),
         triggerId: asyncHooks.triggerAsyncId(),
         setLength: this._stack.length,
