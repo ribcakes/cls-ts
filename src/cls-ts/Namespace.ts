@@ -68,15 +68,19 @@ export class Namespace {
    * @param context - The {@link Context} to associate.
    */
   public assignContext(asyncId: number, context: Context): void {
-    printDebug('[assignContext]', {
-      asyncId,
-      context,
-      name: this.name,
-      currentUid: getCurrentUid(),
-      executionId: asyncHooks.executionAsyncId(),
-      triggerId: asyncHooks.triggerAsyncId(),
-      active: this.active
-    });
+    printDebug(
+      '[assignContext]',
+      {
+        asyncId,
+        context,
+        name: this.name,
+        currentUid: getCurrentUid(),
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        active: this.active
+      },
+      this.indent
+    );
     this._contexts.set(asyncId, context);
   }
 
@@ -104,14 +108,18 @@ export class Namespace {
    * Note: This will do nothing unless `process.env.DEBUG_CLS_TS` is set to `'true'`.
    */
   public dumpContexts(): void {
-    printDebug('[dumpContexts]', {
-      name: this.name,
-      currentUid: getCurrentUid(),
-      executionId: asyncHooks.executionAsyncId(),
-      triggerId: asyncHooks.triggerAsyncId(),
-      contexts: this._contexts,
-      stack: this._stack
-    });
+    printDebug(
+      '[dumpContexts]',
+      {
+        name: this.name,
+        currentUid: getCurrentUid(),
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        contexts: this._contexts,
+        stack: this._stack
+      },
+      this.indent
+    );
   }
 
   /**
@@ -129,14 +137,18 @@ export class Namespace {
     }
     this.active[key] = value;
 
-    printDebug('[set]', {
-      key,
-      value,
-      currentUid: getCurrentUid(),
-      executionId: asyncHooks.executionAsyncId(),
-      triggerId: asyncHooks.triggerAsyncId(),
-      active: this.active
-    });
+    printDebug(
+      '[set]',
+      {
+        key,
+        value,
+        currentUid: getCurrentUid(),
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        active: this.active
+      },
+      this.indent
+    );
     return value;
   }
 
@@ -157,12 +169,12 @@ export class Namespace {
       setLength: this._stack.length
     };
     if (!this.active) {
-      printDebug('[get] no active context', debugContext);
+      printDebug('[get] no active context', debugContext, this.indent);
       return undefined;
     }
     const value = this.active[key];
 
-    printDebug('[get]', { key, ...debugContext });
+    printDebug('[get]', { key, ...debugContext }, this.indent);
 
     return value;
   }
@@ -194,14 +206,18 @@ export class Namespace {
     context[CONTEXT_NAMESPACE_NAME_SYMBOL] = this.name;
     context[CONTEXT_ID_SYMBOL] = getCurrentUid();
 
-    printDebug('[createContext]', {
-      active: this.active,
-      name: this.name,
-      currentUid: getCurrentUid(),
-      executionId: asyncHooks.executionAsyncId(),
-      triggerId: asyncHooks.triggerAsyncId(),
-      setLength: this._stack.length
-    });
+    printDebug(
+      '[createContext]',
+      {
+        active: this.active,
+        name: this.name,
+        currentUid: getCurrentUid(),
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        setLength: this._stack.length
+      },
+      this.indent
+    );
 
     return context;
   }
@@ -217,33 +233,45 @@ export class Namespace {
     this.enter(context);
 
     try {
-      printDebug('[run] begin', {
-        name: this.name,
-        currentUid: getCurrentUid(),
-        executionId: asyncHooks.executionAsyncId(),
-        triggerId: asyncHooks.triggerAsyncId(),
-        setLength: this._stack.length,
-        context
-      });
+      printDebug(
+        '[run] begin',
+        {
+          name: this.name,
+          currentUid: getCurrentUid(),
+          executionId: asyncHooks.executionAsyncId(),
+          triggerId: asyncHooks.triggerAsyncId(),
+          setLength: this._stack.length,
+          context
+        },
+        this.indent
+      );
       fn(context);
-      printDebug('[run] function executed', {
-        name: this.name,
-        currentUid: getCurrentUid(),
-        executionId: asyncHooks.executionAsyncId(),
-        triggerId: asyncHooks.triggerAsyncId(),
-        setLength: this._stack.length,
-        context
-      });
+      printDebug(
+        '[run] function executed',
+        {
+          name: this.name,
+          currentUid: getCurrentUid(),
+          executionId: asyncHooks.executionAsyncId(),
+          triggerId: asyncHooks.triggerAsyncId(),
+          setLength: this._stack.length,
+          context
+        },
+        this.indent
+      );
       return context;
     } catch (error) {
-      printDebug('[run] caught error', {
-        name: this.name,
-        currentUid: getCurrentUid(),
-        executionId: asyncHooks.executionAsyncId(),
-        triggerId: asyncHooks.triggerAsyncId(),
-        setLength: this._stack.length,
-        context
-      });
+      printDebug(
+        '[run] caught error',
+        {
+          name: this.name,
+          currentUid: getCurrentUid(),
+          executionId: asyncHooks.executionAsyncId(),
+          triggerId: asyncHooks.triggerAsyncId(),
+          setLength: this._stack.length,
+          context
+        },
+        this.indent
+      );
       try {
         /*
          * handle exception(throw by user) which is not an error object.
@@ -255,14 +283,18 @@ export class Namespace {
       }
       throw error;
     } finally {
-      printDebug('[run] end', {
-        name: this.name,
-        currentUid: getCurrentUid(),
-        executionId: asyncHooks.executionAsyncId(),
-        triggerId: asyncHooks.triggerAsyncId(),
-        setLength: this._stack.length,
-        context
-      });
+      printDebug(
+        '[run] end',
+        {
+          name: this.name,
+          currentUid: getCurrentUid(),
+          executionId: asyncHooks.executionAsyncId(),
+          triggerId: asyncHooks.triggerAsyncId(),
+          setLength: this._stack.length,
+          context
+        },
+        this.indent
+      );
       this.exit(context);
     }
   }
@@ -296,14 +328,18 @@ export class Namespace {
     const context: Context = this.createContext();
     this.enter(context);
 
-    printDebug('[runPromise] begin', {
-      name: this.name,
-      currentUid: getCurrentUid(),
-      executionId: asyncHooks.executionAsyncId(),
-      triggerId: asyncHooks.triggerAsyncId(),
-      setLength: this._stack.length,
-      context
-    });
+    printDebug(
+      '[runPromise] begin',
+      {
+        name: this.name,
+        currentUid: getCurrentUid(),
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        setLength: this._stack.length,
+        context
+      },
+      this.indent
+    );
 
     const promise: Promise<T> = fn(context);
     // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -313,14 +349,18 @@ export class Namespace {
 
     return promise
       .then((result: T) => {
-        printDebug('[runPromise] after then', {
-          name: this.name,
-          currentUid: getCurrentUid(),
-          executionId: asyncHooks.executionAsyncId(),
-          triggerId: asyncHooks.triggerAsyncId(),
-          setLength: this._stack.length,
-          context
-        });
+        printDebug(
+          '[runPromise] after then',
+          {
+            name: this.name,
+            currentUid: getCurrentUid(),
+            executionId: asyncHooks.executionAsyncId(),
+            triggerId: asyncHooks.triggerAsyncId(),
+            setLength: this._stack.length,
+            context
+          },
+          this.indent
+        );
         this.exit(context);
         return result;
       })
@@ -335,14 +375,18 @@ export class Namespace {
         } catch (ex) {
           // intentionally blank
         }
-        printDebug('[runPromise] after catch', {
-          name: this.name,
-          currentUid: getCurrentUid(),
-          executionId: asyncHooks.executionAsyncId(),
-          triggerId: asyncHooks.triggerAsyncId(),
-          setLength: this._stack.length,
-          context
-        });
+        printDebug(
+          '[runPromise] after catch',
+          {
+            name: this.name,
+            currentUid: getCurrentUid(),
+            executionId: asyncHooks.executionAsyncId(),
+            triggerId: asyncHooks.triggerAsyncId(),
+            setLength: this._stack.length,
+            context
+          },
+          this.indent
+        );
         this.exit(context);
         throw error;
       });
@@ -356,14 +400,18 @@ export class Namespace {
    * @param context - The optional {@link Context} to bind the function to.
    */
   public bind<T, A extends unknown[]>(fn: (...args: A) => T, context: Context = this.active || this.createContext()): (...args: A) => T {
-    printDebug('[bind]', {
-      name: this.name,
-      currentUid: getCurrentUid(),
-      executionId: asyncHooks.executionAsyncId(),
-      triggerId: asyncHooks.triggerAsyncId(),
-      setLength: this._stack.length,
-      context
-    });
+    printDebug(
+      '[bind]',
+      {
+        name: this.name,
+        currentUid: getCurrentUid(),
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        setLength: this._stack.length,
+        context
+      },
+      this.indent
+    );
 
     const self: Namespace = this;
     return function(...args: A): T {
@@ -397,14 +445,18 @@ export class Namespace {
    */
   public enter(context: Context): void {
     assert.ok(context, 'context must be provided for entering');
-    printDebug('[enter]', {
-      name: this.name,
-      currentUid: getCurrentUid(),
-      executionId: asyncHooks.executionAsyncId(),
-      triggerId: asyncHooks.triggerAsyncId(),
-      setLength: this._stack.length,
-      context
-    });
+    printDebug(
+      '[enter]',
+      {
+        name: this.name,
+        currentUid: getCurrentUid(),
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        setLength: this._stack.length,
+        context
+      },
+      this.indent
+    );
     this._stack.push(this.active);
     this._active = context;
   }
@@ -430,11 +482,11 @@ export class Namespace {
       context
     };
     assert.ok(context, 'context must be provided for exiting');
-    printDebug('[exit]', debugContext);
+    printDebug('[exit]', debugContext, this.indent);
 
     // Fast path for most exits that are at the top of the stack
     if (this.active === context) {
-      printDebug('[exit] replacing active context with the top of the context stack', debugContext);
+      printDebug('[exit] replacing active context with the top of the context stack', debugContext, this.indent);
       assert.ok(this._stack.length, "can't remove top context");
       this._active = this._stack.pop();
       return;
@@ -443,12 +495,12 @@ export class Namespace {
     // Fast search in the stack using lastIndexOf
     const index: number = this._stack.lastIndexOf(context);
     if (index < 0) {
-      printDebug("[exit] context wasn't entered, was it destroyed?", debugContext);
+      printDebug("[exit] context wasn't entered, was it destroyed?", debugContext, this.indent);
       return;
     }
     assert.ok(index, "can't remove top context");
 
-    printDebug('[exit] deleting context from set', { ...debugContext, index });
+    printDebug('[exit] deleting context from set', { ...debugContext, index }, this.indent);
     this._stack.splice(index, 1);
   }
 
@@ -473,7 +525,7 @@ export class Namespace {
       setLength: this._stack.length,
       emitter
     };
-    printDebug('[bind emitter] start', debugContext);
+    printDebug('[bind emitter] start', debugContext, this.indent);
     const weakNamespace: this = weak(this);
 
     // Capture the context active at the time the emitter is bound.
@@ -520,21 +572,25 @@ export class Namespace {
     };
 
     wrapEmitter(emitter, attach, bind);
-    printDebug('[bind emitter] end', debugContext);
+    printDebug('[bind emitter] end', debugContext, this.indent);
   }
 
   /**
    * Resets this {@link Namespace} by removing the active {@link Namespace}, as well as the map and stack of {@link Context}s.
    */
   public reset(): void {
-    printDebug('[reset]', {
-      name: this.name,
-      currentUid: getCurrentUid(),
-      executionId: asyncHooks.executionAsyncId(),
-      triggerId: asyncHooks.triggerAsyncId(),
-      setLength: this._stack.length,
-      indent: this.indent
-    });
+    printDebug(
+      '[reset]',
+      {
+        name: this.name,
+        currentUid: getCurrentUid(),
+        executionId: asyncHooks.executionAsyncId(),
+        triggerId: asyncHooks.triggerAsyncId(),
+        setLength: this._stack.length,
+        indent: this.indent
+      },
+      this.indent
+    );
     this._active = undefined;
     this._contexts.clear();
     this._stack = [];
