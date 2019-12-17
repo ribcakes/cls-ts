@@ -16,18 +16,6 @@ import { Namespace } from './Namespace';
 export const ERROR_SYMBOL = Symbol('error@namespace');
 
 /**
- * The execution async id of the current async context.
- */
-let currentUid = -1;
-
-/**
- * Returns the async execution id of the current async context.
- */
-export const getCurrentUid = function(): number {
-  return currentUid;
-};
-
-/**
  * Map of all {@link Namespace}s keyed by their names.
  */
 const namespaces: Map<string, Namespace> = new Map<string, Namespace>();
@@ -61,106 +49,19 @@ export const createNamespace = function(name: string): Namespace {
   const namespace = new Namespace(name);
   const hook: asyncHooks.AsyncHook = asyncHooks.createHook({
     init(asyncId: number, type: string, triggerAsyncId: number, resource: Record<string, any>): void {
-      currentUid = asyncHooks.executionAsyncId();
-      const debugContext = {
-        type,
-        name,
-        asyncId,
-        currentUid,
-        triggerId: triggerAsyncId,
-        active: namespace.active
-      };
-
-      if (namespace.active) {
-        namespace.assignContext(asyncId, namespace.active);
-        printDebug('[init] with active', debugContext, namespace.indent);
-      } else if (currentUid === 0) {
-        /*
-         * CurrentId will be 0 when triggered from C++. Promise events
-         * https://github.com/nodejs/node/blob/master/doc/api/async_hooks.md#triggerid
-         */
-        const triggerIdContext: Context = namespace.getContext(triggerAsyncId);
-        if (null == triggerIdContext) {
-          printDebug('[init] missing context', debugContext, namespace.indent);
-        } else {
-          namespace.assignContext(asyncId, triggerIdContext);
-          printDebug('[init] using context from trigger id', debugContext, namespace.indent);
-        }
-
-        if ('PROMISE' === type) {
-          printDebug('[init] promise', { ...debugContext, parentId: resource.parentId, resource }, namespace.indent);
-        }
-      }
+      namespace.init(asyncId, type, triggerAsyncId, resource);
     },
     before(asyncId: number): void {
-      currentUid = asyncHooks.executionAsyncId();
-      const debugContext = {
-        name,
-        asyncId,
-        currentUid,
-        triggerId: asyncHooks.triggerAsyncId(),
-        active: namespace.active
-      };
-
-      const context: Context = namespace.getContext(asyncId) || namespace.getContext(currentUid);
-      if (context) {
-        printDebug('[before]', { ...debugContext, context }, namespace.indent);
-        namespace.enter(context);
-      } else {
-        printDebug('[before] missing context', debugContext, namespace.indent);
-      }
-      namespace.updateIndent(1);
+      namespace.before(asyncId);
     },
     after(asyncId: number): void {
-      currentUid = asyncHooks.executionAsyncId();
-      const debugContext = {
-        name,
-        asyncId,
-        currentUid,
-        triggerId: asyncHooks.triggerAsyncId(),
-        active: namespace.active
-      };
-      namespace.updateIndent(-1);
-
-      const context: Context = namespace.getContext(asyncId) || namespace.getContext(currentUid);
-      if (context) {
-        printDebug('[after]', { ...debugContext, context }, namespace.indent);
-        namespace.exit(context);
-      } else {
-        printDebug('[after] missing context', debugContext, namespace.indent);
-      }
+      namespace.after(asyncId);
     },
     destroy(asyncId: number): void {
-      currentUid = asyncHooks.executionAsyncId();
-      printDebug(
-        '[destroy]',
-        {
-          name,
-          asyncId,
-          currentUid,
-          triggerId: asyncHooks.triggerAsyncId(),
-          active: namespace.active,
-          context: namespace.getContext(asyncId)
-        },
-        namespace.indent
-      );
-      namespace.deleteContext(asyncId);
+      namespace.destroy(asyncId);
     },
     promiseResolve(asyncId: number): void {
-      currentUid = asyncHooks.executionAsyncId();
-      printDebug(
-        '[promiseResolve]',
-        {
-          name,
-          asyncId,
-          currentUid: asyncHooks.executionAsyncId(),
-          triggerId: asyncHooks.triggerAsyncId(),
-          active: namespace.active,
-          context: namespace.getContext(currentUid)
-        },
-        namespace.indent
-      );
-      namespace.deleteContext(asyncId);
+      namespace.promiseResolve(asyncId);
     }
   });
   hook.enable();
