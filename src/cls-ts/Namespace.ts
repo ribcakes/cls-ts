@@ -744,8 +744,9 @@ export class Namespace implements asyncHooks.HookCallbacks {
       this.indent
     );
     this._active = undefined;
-    this._contexts.clear();
     this._stack = [];
+    this._contexts.clear();
     this._indent = 0;
+    this._resolvedContexts.clear();
   }
 }

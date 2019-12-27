@@ -1,5 +1,9 @@
 # `cls-ts` Changelog
 
+## v0.3.1
+
+* Fix: Cleanup `_resolvedContexts` map in `reset()` call.
+
 ## v0.3.0
 
 * Fix: Async_hooks `promiseResolve` callback is called before the `after` callback for promises, leading to the stack not being cleaned up.
